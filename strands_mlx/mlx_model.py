@@ -10,6 +10,7 @@ with unified memory and Metal acceleration.
 
 import json
 import logging
+from pathlib import Path
 from typing import (
     Any,
     AsyncGenerator,
@@ -36,6 +37,13 @@ from strands.models.model import Model
 from mlx_lm import load
 from mlx_lm import stream_generate
 from mlx_lm.sample_utils import make_sampler
+
+try:
+    from huggingface_hub import snapshot_download
+
+    HF_HUB_AVAILABLE = True
+except ImportError:
+    HF_HUB_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +93,52 @@ class MLXModel(Model):
         logger.debug("config=<%s> | initializing", self.config)
         self._load_model()
 
+    def _resolve_adapter_path(self, adapter_path: Optional[str]) -> Optional[str]:
+        """Resolve adapter path - download from HF if needed.
+
+        Args:
+            adapter_path: Local path or HF repo ID.
+
+        Returns:
+            Local path to adapter or None.
+        """
+        if not adapter_path:
+            return None
+
+        # Check if it's a local path
+        if Path(adapter_path).exists():
+            logger.debug("adapter_path=<%s> | local path exists", adapter_path)
+            return adapter_path
+
+        # Try to download from HuggingFace
+        if HF_HUB_AVAILABLE:
+            try:
+                logger.debug("adapter_path=<%s> | downloading from HuggingFace", adapter_path)
+                local_path = snapshot_download(repo_id=adapter_path, repo_type="model")
+                logger.debug("adapter_path=<%s> | downloaded to <%s>", adapter_path, local_path)
+                return local_path
+            except Exception as e:
+                logger.error("adapter_path=<%s> | failed to download: %s", adapter_path, e)
+                raise FileNotFoundError(
+                    f"Adapter path '{adapter_path}' not found locally and failed to download from HuggingFace: {e}"
+                ) from e
+        else:
+            raise ImportError(
+                f"Adapter path '{adapter_path}' not found locally. Install huggingface_hub to download from HuggingFace: pip install huggingface_hub"
+            )
+
     def _load_model(self) -> None:
         """Load model using mlx_lm.load()."""
         model_id = self.config["model_id"]
         logger.debug("model_id=<%s> | loading", model_id)
 
+        # Resolve adapter path (download if needed)
+        adapter_path = self._resolve_adapter_path(self.config.get("adapter_path"))
+
         self.model, self.tokenizer = load(
             model_id,
             tokenizer_config=self.config.get("tokenizer_config", {}),
-            adapter_path=self.config.get("adapter_path"),
+            adapter_path=adapter_path,
             lazy=self.config.get("lazy", False),
         )
 
