@@ -1,2 +1,3 @@
 strands-agents
 mlx-lm
+mlx-vlm

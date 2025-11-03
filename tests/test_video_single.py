@@ -1,21 +1,39 @@
-#!/usr/bin/env python3
-"""Test video analysis with MLXVisionModel."""
+"""Video analysis tests for strands-mlx"""
 
-from strands import Agent
-from strands_mlx import MLXVisionModel
+import pytest
+from pathlib import Path
 
-# Create MLX vision model
-model = MLXVisionModel(
-    model_id="mlx-community/Qwen2-VL-2B-Instruct-4bit",
-    params={"resize_shape": (1024, 1024), "max_tokens": 500},
-)
+# Test media path
+TEST_VIDEO = Path("./test_media/sample_video.mp4")
 
-agent = Agent(model=model)
 
-# Test video path
-video_path = "./test_media/sample_video.mp4"
+def test_video_analysis():
+    """Test video analysis functionality"""
+    from strands import Agent
+    from strands_mlx import MLXVisionModel
 
-# Test video analysis
-print(f"🎥 Analyzing video: {video_path}\n")
-result = agent(f"Describe what happens in this video: <video>{video_path}</video>")
-print(f"\n✅ Result: {result}")
+    model = MLXVisionModel(
+        model_id="mlx-community/Qwen2-VL-2B-Instruct-4bit",
+        params={"resize_shape": (1024, 1024), "max_tokens": 500},
+    )
+    agent = Agent(model=model)
+
+    response = agent(f"Describe what happens in this video: <video>{TEST_VIDEO}</video>")
+    print(f"\n🎥 Video analysis response:\n{response}\n")
+
+    # Assertions
+    assert response is not None
+    assert len(str(response)) > 0
+
+    # Check for video-related content
+    response_text = str(response).lower()
+    assert len(response_text) > 20  # Should have substantial description
+    # Video should have some descriptive content
+    assert any(
+        word in response_text
+        for word in ["video", "show", "display", "see", "frame", "scene", "action"]
+    )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

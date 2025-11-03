@@ -1,26 +1,53 @@
-from strands import Agent
-from strands_mlx import MLXVisionModel
+"""Vision tests for strands-mlx"""
 
-# Create vision model
-model = MLXVisionModel(model_id="mlx-community/Qwen2-VL-2B-Instruct-4bit")
-agent = Agent(model=model)
+import pytest
+from pathlib import Path
 
-# Test image path
-image_path = "./test_media/sample_image.jpg"
+# Test media path
+TEST_IMAGE = Path("./test_media/sample_image.jpg")
 
-# Test 1: Simple image description
-print("=== Test 1: Image description ===")
-result = agent(f"What do you see in this image? <image>{image_path}</image>")
-print(f"Result: {result}\n")
 
-# Test 2: Detailed analysis
-print("=== Test 2: Detailed analysis ===")
-result = agent(
-    f"Analyze this image in detail and describe the status codes shown: <image>{image_path}</image>"
-)
-print(f"Result: {result}\n")
+def test_vision_basic():
+    """Test basic vision model functionality"""
+    from strands import Agent
+    from strands_mlx import MLXVisionModel
 
-# Test 3: Without explicit image tag (just path in message)
-print("=== Test 3: Direct path ===")
-result = agent(f"Describe {image_path}")
-print(f"Result: {result}\n")
+    model = MLXVisionModel(model_id="mlx-community/Qwen2-VL-2B-Instruct-4bit")
+    agent = Agent(model=model)
+
+    response = agent(f"Describe this image: <image>{TEST_IMAGE}</image>")
+    print(f"\n🖼️ Basic vision response:\n{response}\n")
+
+    # Assertions
+    assert response is not None
+    assert len(str(response)) > 0
+
+    # Check for expected content (HTTP status codes)
+    response_text = str(response).lower()
+    assert "200" in response_text or "ok" in response_text
+    assert "404" in response_text or "not found" in response_text
+
+
+def test_vision_detailed():
+    """Test detailed vision analysis"""
+    from strands import Agent
+    from strands_mlx import MLXVisionModel
+
+    model = MLXVisionModel(model_id="mlx-community/Qwen2-VL-2B-Instruct-4bit")
+    agent = Agent(model=model)
+
+    response = agent(f"Analyze this image in detail: <image>{TEST_IMAGE}</image>")
+    print(f"\n🔍 Detailed vision response:\n{response}\n")
+
+    # Assertions
+    assert response is not None
+    assert len(str(response)) > 50  # Detailed response should be substantial
+
+    # Check for HTTP status code references
+    response_text = str(response).lower()
+    assert "status" in response_text or "http" in response_text
+    assert "200" in response_text or "404" in response_text
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

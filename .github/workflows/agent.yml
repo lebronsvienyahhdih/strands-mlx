@@ -1,0 +1,107 @@
+name: Interactive Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task for the agent'
+        required: true
+        type: string
+        default: 'What is Strands Agents?'
+      model:
+        description: 'Model to use'
+        required: false
+        type: string
+        default: 'mlx-community/Qwen3-1.7B-4bit'
+      adapter_path:
+        description: 'Optional adapter path (HF repo or local)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  check-authorization:
+    runs-on: ubuntu-latest
+    outputs:
+      authorized: ${{ steps.auth.outputs.authorized }}
+    steps:
+      - name: Check if user is authorized
+        id: auth
+        run: |
+          AUTHORIZED_USERS="${{ secrets.AUTHORIZED_USERS }}"
+          CURRENT_USER="${{ github.actor }}"
+          
+          if [[ -z "$AUTHORIZED_USERS" ]]; then
+            echo "⚠️ No AUTHORIZED_USERS secret set, allowing all users"
+            echo "authorized=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if echo "$AUTHORIZED_USERS" | tr ',' '\n' | grep -q "^${CURRENT_USER}$"; then
+            echo "✅ User $CURRENT_USER is authorized"
+            echo "authorized=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ User $CURRENT_USER is not authorized"
+            echo "authorized=false" >> $GITHUB_OUTPUT
+          fi
+
+  unauthorized:
+    needs: check-authorization
+    if: needs.check-authorization.outputs.authorized == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unauthorized
+        run: |
+          echo "❌ User ${{ github.actor }} is not authorized to run this workflow"
+          echo "Please contact the repository owner to be added to AUTHORIZED_USERS secret"
+          exit 1
+
+  run-agent:
+    needs: check-authorization
+    if: needs.check-authorization.outputs.authorized == 'true'
+    runs-on: macos-15
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: Install strands-mlx
+      run: |
+        uv pip install --system -e ".[all]"
+        uv pip install --system strands-agents-tools
+    
+    - name: Show system info
+      run: |
+        uname -m
+        sw_vers
+        python --version
+    
+    - name: Run agent
+      run: |
+        if [ -n "${{ github.event.inputs.adapter_path }}" ]; then
+          python agent.py "${{ github.event.inputs.task }}" \
+            --model "${{ github.event.inputs.model }}" \
+            --adapter "${{ github.event.inputs.adapter_path }}"
+        else
+          python agent.py "${{ github.event.inputs.task }}" \
+            --model "${{ github.event.inputs.model }}"
+        fi
+    
+    - name: Summary
+      if: always()
+      run: |
+        echo "## 🤖 Agent Execution Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **User:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Model:** ${{ github.event.inputs.model }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Adapter:** ${{ github.event.inputs.adapter_path || 'None' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Task:** ${{ github.event.inputs.task }}" >> $GITHUB_STEP_SUMMARY
