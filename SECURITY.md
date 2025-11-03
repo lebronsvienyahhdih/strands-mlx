@@ -19,7 +19,7 @@ We take the security of strands-mlx seriously. If you discover a security vulner
 
 Instead, please report security issues by emailing:
 
-**📧 cagatay@strandsagents.com**
+**📧 cagataycali@icloud.com**
 
 ### What to Include
 

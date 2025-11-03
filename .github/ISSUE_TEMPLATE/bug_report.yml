@@ -26,10 +26,10 @@ body:
         ```python
         from strands import Agent
         from strands_mlx import MLXModel
-        
+
         model = MLXModel(model_id="mlx-community/Qwen3-1.7B-4bit")
         agent = Agent(model=model)
-        
+
         # Bug occurs here...
         ```
     validations:
