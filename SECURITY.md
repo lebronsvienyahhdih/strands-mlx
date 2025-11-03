@@ -186,6 +186,6 @@ Thank you for helping keep strands-mlx and its users safe! 🛡️
 
 ## Contact
 
-- **Security Issues:** cagatay@strandsagents.com
+- **Security Issues:** cagataycali@icloud.com
 - **General Issues:** [GitHub Issues](https://github.com/cagataycali/strands-mlx/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/cagataycali/strands-mlx/discussions)
